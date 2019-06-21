@@ -6,6 +6,7 @@ using Laboratorio.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Laboratorio.Models;
 
 namespace Laboratorio.Controllers
 {
@@ -19,9 +20,56 @@ namespace Laboratorio.Controllers
         }
 
         // GET: Categorias
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string sortOrder, string currentFilter, string searchString,int? page)
         {
-            return View(await _context.Categoria.ToListAsync());
+            ViewData["NombreSortParm"] = String.IsNullOrEmpty(sortOrder) ? "nombre_desc" : "";
+            ViewData["DescripcionSortParm"] = sortOrder == "descripcion_asc" ? "descripcion_desc" : "descripcion_asc";
+
+            if (searchString != null)
+            {
+                page = 1;
+            }
+            else
+            {
+                searchString = currentFilter;
+            }
+            ViewData["CurrentFilter"] = searchString;
+            ViewData["CurrentSort"] = sortOrder;
+            /* 
+             * from <Nombre la variable que almacenará un elemento a la vez de la coleccion>
+             in <fuente de datos>
+             where <criterios de selección>
+             order by <criterio para ordenar los datos>
+             select <nombres de variables>*/
+
+            var categorias = from s
+                             in _context.Categoria
+                             select s;
+            if (!String.IsNullOrEmpty(searchString))
+            {
+                categorias = categorias.Where(s => s.Nombre.Contains(searchString) || s.Descripcion.Contains(searchString));
+            }
+            switch (sortOrder)
+            {
+                case "nombre_desc":
+                    categorias = categorias.OrderByDescending(s => s.Nombre);
+                    break;
+                case "descripcion_desc":
+                    categorias = categorias.OrderByDescending(s => s.Descripcion);
+                    break;
+                case "descripcion_asc":
+                    categorias = categorias.OrderBy(s => s.Descripcion);
+                    break;
+                default:
+                    categorias = categorias.OrderBy(s => s.Nombre);
+                    break;
+            }
+
+            //return View(await categorias.AsNoTracking().ToListAsync());
+
+            //return View(await _context.Categoria.ToListAsync());
+            int pageSize = 3;
+            return View(await Paginacion<Categoria>.CreateAsync(categorias.AsNoTracking(), page ?? 1, pageSize));
         }
 
         // GET: Categorias/Details/5
